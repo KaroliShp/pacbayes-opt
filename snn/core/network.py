@@ -92,6 +92,7 @@ class Network(object):
         switch = tf.to_float(self.y * yhat < -self.y * yhat)
         exponent = tf.exp((2 * switch - 1) * self.y * yhat)
         return tf.reduce_mean(tf.log(1 + exponent) - (switch * self.y * yhat)) / np.float32(np.log(2))
+        #return tf.reduce_mean(tf.log(1 + tf.exp(-self.y * yhat)) / (np.float32(np.log(2))))
 
     def optimize(self, epochs=10, batch_size=100, learning_rate=0.01, momentum=0.9):
         with self.graph.as_default():
@@ -235,11 +236,18 @@ class Network(object):
 
             nparams, layer_shapes = self.count_N_params()
             self.layer_shapes = layer_shapes
-            self.mean_weights_component = (norm_params)/(tf.exp(2*log_prior_std))
-            self.var_weights_component = norm_post_variance/(tf.exp(2*log_prior_std)) - 2*sum_log_post_variance + 2*nparams*log_prior_std
+
+            # self.mean_weights_component = (norm_params)/(tf.exp(2*log_prior_std))
+            self.mean_weights_component = (norm_params)/(self.log_prior_std_base / (1 + tf.exp(-log_prior_std)))
+
+            # self.var_weights_component = norm_post_variance/(tf.exp(2*log_prior_std)) - 2*sum_log_post_variance + 2*nparams*log_prior_std
+            self.var_weights_component = norm_post_variance/(self.log_prior_std_base / (1 + tf.exp(-log_prior_std))) - 2*sum_log_post_variance + nparams*tf.log((self.log_prior_std_base / (1 + tf.exp(-log_prior_std))))
+
             self.KLdivTimes2 = self.mean_weights_component + self.var_weights_component - nparams
             factor1 = 2*tf.log(self.log_prior_std_precision)
-            factor2 = 2*tf.log(tf.maximum(tf.log(self.log_prior_std_base) - 2 * log_prior_std, 1e-2))
+            
+            # factor2 = 2*tf.log(tf.maximum(tf.log(self.log_prior_std_base) - 2 * log_prior_std, 1e-2))
+            factor2 = 2*tf.log(tf.log(self.log_prior_std_base) - tf.log((self.log_prior_std_base-0.001) / (1 + tf.exp(-log_prior_std))))
             Bquad = self.KLdivTimes2/2 + tf.log(np.pi**2 * effective_m/(6*0.05)) \
                                           + factor1 + factor2
 
@@ -350,6 +358,8 @@ class Network(object):
                     [train_step, A, cost, self.KLdivTimes2, self.B, self.mean_weights_component,
                      self.var_weights_component, log_prior_std, Bquad, factor1, factor2], feed_dict=feed_dict_val)
 
+                
+
                 # Save at a frequency for every epoch, or at the last run
                 if i%(1 * Nsamples / batch_size)==0 or (i == epochs*int(Nsamples/batch_size) - 1):
                     bpac = approximate_BPAC_bound(train_accuracy_stoch, B_i)
@@ -401,13 +411,23 @@ class Network(object):
 
             # Load and discretize prior variance parameter
             init_log_prior_std = self.log_prior_std
-            jdisc = self.log_prior_std_precision * (np.log(self.log_prior_std_base) - 2 * init_log_prior_std)
+
+            # jdisc = self.log_prior_std_precision * (np.log(self.log_prior_std_base) - 2 * init_log_prior_std)
+            jdisc = self.log_prior_std_precision * (np.log(self.log_prior_std_base) - np.log(((self.log_prior_std_base-0.001) / (1 + np.exp(-init_log_prior_std)))))
+
             print("Before discretization")
             print(init_log_prior_std,jdisc)
-            jdisc_up   = np.float32(math.ceil(jdisc))
-            jdisc_down = np.float32(math.floor(jdisc))
-            init_log_prior_std_up = (np.log(self.log_prior_std_base) - jdisc_up / self.log_prior_std_precision) / 2
-            init_log_prior_std_down = (np.log(self.log_prior_std_base) - jdisc_down / self.log_prior_std_precision) / 2
+
+            # jdisc_up   = np.float32(math.ceil(jdisc))
+            # jdisc_down = np.float32(math.floor(jdisc))
+            jdisc_up   = np.maximum(np.float32(math.ceil(jdisc)),1)  # j must be a natural number
+            jdisc_down = np.maximum(np.float32(math.floor(jdisc)),1)  # j must be a natural number
+
+            # init_log_prior_std_up = (np.log(self.log_prior_std_base) - jdisc_up / self.log_prior_std_precision) / 2
+            # init_log_prior_std_down = (np.log(self.log_prior_std_base) - jdisc_down / self.log_prior_std_precision) / 2
+            init_log_prior_std_up = np.exp(np.log(self.log_prior_std_base) - jdisc_up / self.log_prior_std_precision)
+            init_log_prior_std_down = np.exp(np.log(self.log_prior_std_base) - jdisc_down / self.log_prior_std_precision)
+
             print("After discretization")
             print(init_log_prior_std_down,jdisc_down)
             print(init_log_prior_std_up,jdisc_up)
@@ -441,7 +461,9 @@ class Network(object):
                                           self.y)
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-            KLdivTimes2 = (norm_post_variance+norm_params)/(tf.exp(2*log_prior_std)) + 2*nparams*log_prior_std - nparams - 2*sum_log_post_variance
+            # KLdivTimes2 = (norm_post_variance+norm_params)/(tf.exp(2*log_prior_std)) + 2*nparams*log_prior_std - nparams - 2*sum_log_post_variance
+            KLdivTimes2 = (norm_post_variance+norm_params)/log_prior_std + nparams*tf.log(log_prior_std) - nparams - 2*sum_log_post_variance
+
             Bquad = KLdivTimes2/2 + tf.log(np.pi**2*effective_m/(6*self.deltaPAC)) \
                                       + 2*tf.log(jopt)
             B = tf.sqrt(Bquad/(2*(effective_m-1)))
