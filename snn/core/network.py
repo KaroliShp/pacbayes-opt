@@ -33,8 +33,8 @@ class Network(object):
             self.output_dict = {"L2": [], "diff": [], "weights": [], "mean_weights": [], "var_weights": [], "PACBound": [], "B_val": [], "KL_val": [], "test_acc": [], "train_acc": [], "L2_PACB": [], "log_post_all": [], "PACB_weights": [], "log_prior_std": []}
 
             # PACBound parameters
-            self.log_prior_std_precision = 100.0
-            self.log_prior_std_base = 0.1
+            self.log_prior_std_precision = 1000.0
+            self.log_prior_std_base = 1.0
             self.deltaPAC = 0.025
 
             # Set graph level random seeds
@@ -238,10 +238,10 @@ class Network(object):
             self.layer_shapes = layer_shapes
 
             # self.mean_weights_component = (norm_params)/(tf.exp(2*log_prior_std))
-            self.mean_weights_component = (norm_params)/(self.log_prior_std_base / (1 + tf.exp(-log_prior_std)))
+            self.mean_weights_component = (norm_params)/((self.log_prior_std_base-0.001) / (1 + tf.exp(-log_prior_std)))
 
             # self.var_weights_component = norm_post_variance/(tf.exp(2*log_prior_std)) - 2*sum_log_post_variance + 2*nparams*log_prior_std
-            self.var_weights_component = norm_post_variance/(self.log_prior_std_base / (1 + tf.exp(-log_prior_std))) - 2*sum_log_post_variance + nparams*tf.log((self.log_prior_std_base / (1 + tf.exp(-log_prior_std))))
+            self.var_weights_component = norm_post_variance/((self.log_prior_std_base-0.001) / (1 + tf.exp(-log_prior_std))) - 2*sum_log_post_variance + nparams*tf.log(((self.log_prior_std_base-0.001) / (1 + tf.exp(-log_prior_std))))
 
             self.KLdivTimes2 = self.mean_weights_component + self.var_weights_component - nparams
             factor1 = 2*tf.log(self.log_prior_std_precision)
@@ -362,6 +362,9 @@ class Network(object):
 
                 # Save at a frequency for every epoch, or at the last run
                 if i%(1 * Nsamples / batch_size)==0 or (i == epochs*int(Nsamples/batch_size) - 1):
+                    print(train_accuracy_stoch)
+                    print(B_i)
+                    print(kldiv2_i)
                     bpac = approximate_BPAC_bound(train_accuracy_stoch, B_i)
                     output ="".join("Epoch:" + '%04d' % (epoch+1) + " cost=" + str(cost_i[0]) +
                                     " mean accuracy %.4f" % train_accuracy_stoch + ' KL div:  %.4f' % (kldiv2_i/2) +
@@ -500,8 +503,11 @@ class Network(object):
                 else:
                     KL_val = KLdivTimes2.eval({log_prior_std: init_log_prior_std_down, jopt: jdisc_down})/2.0
 
+                print(mean_train_accuracy)
+                print(B_val)
+                print(KL_val)
                 bpac = approximate_BPAC_bound(mean_train_accuracy, B_val)
-                print("Results with delta = %.2f"%(self.deltaPAC+0.01))
+                print("Results with delta = %.3f"%(self.deltaPAC+0.01))
                 print("PAC bound error:", '%.4f' % bpac,
                       "Gen bound :", '%.4f' % B_val,
                       "KL value: ", '%.4f' % KL_val)
