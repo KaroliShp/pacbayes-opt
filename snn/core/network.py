@@ -10,6 +10,7 @@ from snn.core import package_path
 from snn.core import config
 import gzip
 import pickle
+import copy
 
 
 class Network(object):
@@ -33,8 +34,8 @@ class Network(object):
             self.output_dict = {"L2": [], "diff": [], "weights": [], "mean_weights": [], "var_weights": [], "PACBound": [], "B_val": [], "KL_val": [], "test_acc": [], "train_acc": [], "L2_PACB": [], "log_post_all": [], "PACB_weights": [], "log_prior_std": []}
 
             # PACBound parameters
-            self.log_prior_std_precision = 1000.0
-            self.log_prior_std_base = 1.0
+            self.log_prior_std_precision = 100.0
+            self.log_prior_std_base = 0.1
             self.deltaPAC = 0.025
 
             # Set graph level random seeds
@@ -72,7 +73,7 @@ class Network(object):
                                       feed_dict={self.x: x[ii:jj],
                                                  self.y: y[ii:jj]})
         test_acc = test_acc / no_batches
-        print("Average %s accuracy: %.4f" %(whichset, test_acc))
+        #print("Average %s accuracy: %.4f" %(whichset, test_acc))
         return test_acc
 
     def print_accuracy_in_batches_noise(self, x, y, noise, feed_input, accuracy, no_batches=10, whichset='train'):
@@ -85,7 +86,7 @@ class Network(object):
             feed_dict = {a: b for (a, b) in zip(feed_input, output_list)}
             test_acc += accuracy.eval(feed_dict=feed_dict)
         test_acc = test_acc / no_batches
-        print("Average %s accuracy: %.4f" %(whichset, test_acc))
+        #print("Average %s accuracy: %.4f" %(whichset, test_acc))
         return test_acc
 
     def logistic_loss(self, yhat):
@@ -117,6 +118,7 @@ class Network(object):
                 batch_x, batch_y = next_batch(self.X[index_set], self.Y[index_set], batch_size,
                                               int(i % number_of_batches_per_epoch))
                 _, cost = self.sess.run([train_step, self.cost_fn], feed_dict={self.x: batch_x, self.y: batch_y})
+        self.trained_weights = self.get_model_weights()
         return weights_rand_init
 
     def save_output(self, path=os.path.join(package_path, "experiments", "results", "out.pickle")):
@@ -226,7 +228,8 @@ class Network(object):
             self.yhat, param_var_list = self.model_with_noise(self.x, network_perturb_list, self.scopes_list, self.layers, network_weights, graph=self.graph, trainable=trainWeights)
 
             norm_post_variance = tf.add_n(list(map(lambda x: tf.reduce_sum(tf.exp(x*2)), log_post_std_list)))
-            norm_params = tf.add_n(list(map(lambda x,y: tf.reduce_sum((x-y)**2), network_weights, prior_weights)))
+            # norm_params = tf.add_n(list(map(lambda x,y: tf.reduce_sum((x-y)**2), network_weights, prior_weights)))
+            norm_params = tf.add_n(list(map(lambda x,y: tf.reduce_sum((x-y)**2), self.get_model_weights_vars(), prior_weights)))  # The problem is here: network_weights is a const val
             sum_log_post_variance = tf.add_n(list(map(lambda x: tf.reduce_sum(x), log_post_std_list)))
 
             correct_prediction = tf.equal(tf.cast(self.yhat >= 0, tf.float32) - tf.cast(self.yhat < 0, tf.float32),
@@ -254,7 +257,7 @@ class Network(object):
             c = Bquad/(2*(effective_m-1))
             self.B = tf.sqrt(c)
             cost = A + self.B
-            return A, cost, Bquad, effective_m, log_prior_std, log_post_std_list, factor1, factor2
+            return A, cost, Bquad, effective_m, log_prior_std, log_post_std_list, factor1, factor2, norm_post_variance, norm_params, sum_log_post_variance, nparams, network_weights
 
     def PACB_store(self, save_dict, i, log_prior_std=None, m_w=None, v_w=None, bpac=None, B_val=None, KL_val=None,
                    test_acc=None, train_acc=None, log_post_std_list=None):
@@ -296,7 +299,7 @@ class Network(object):
         """ Optimize the PAC Bayes Bound depending on a prior """
 
         with self.graph.as_default():
-            A, cost, Bquad, effective_m, log_prior_std, log_post_std_list, factor1, factor2 = self.PACB_objective(prior_weights, trainWeights=trainWeights)
+            A, cost, Bquad, effective_m, log_prior_std, log_post_std_list, factor1, factor2, norm_post_variance, norm_params, sum_log_post_variance, nparams, network_weights = self.PACB_objective(prior_weights, trainWeights=trainWeights)
             train_step = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost)
             train_step_dropped = tf.train.RMSPropOptimizer(learning_rate=lr_factor*learning_rate).minimize(cost)
 
@@ -320,7 +323,18 @@ class Network(object):
                 # For the stochastic network
                 noise_list = generate_noise(self.layer_shapes)
 
-                if i % int(Nsamples/batch_size) == 0: # At every epoch, shuffle the data
+                if (drop_lr is not None) and (epoch>drop_lr):
+                    train_step = train_step_dropped
+
+                feed_input = [self.x, self.y] + self.param_noise_list
+                feed_output = [batch_x, batch_y] + noise_list
+                feed_dict_val = {i: d for i, d in zip(feed_input, feed_output)}
+                _, A_i, cost_i, kldiv2_i, B_i, m_w, v_w, _log_prior_std, Bquad_i, factor1_i, factor2_i, norm_post_variance_i, norm_params_i, sum_log_post_variance_i = self.sess.run(
+                    [train_step, A, cost, self.KLdivTimes2, self.B, self.mean_weights_component,
+                     self.var_weights_component, log_prior_std, Bquad, factor1, factor2, norm_post_variance, norm_params, sum_log_post_variance], feed_dict=feed_dict_val)
+
+                # Save at a frequency for every epoch, or at the last run
+                if i % int(Nsamples/batch_size) == 0 or (i == epochs*int(Nsamples/batch_size) - 1):
                     trainX, trainY = shuffledata(trainX, trainY)
 
                     train_accuracy_stoch = 0
@@ -346,25 +360,19 @@ class Network(object):
                     train_accuracy_stoch = train_accuracy_stoch/Nsamples
                     train_accuracy_det = train_accuracy_det/Nsamples
                     mean_accuracy_stoch_print.append(train_accuracy_stoch)
-                    mean_accuracy_det_print.append(train_accuracy_det)
+                    mean_accuracy_det_print.append(train_accuracy_det)                
 
-                if (drop_lr is not None) and (epoch>drop_lr):
-                    train_step = train_step_dropped
-
-                feed_input = [self.x, self.y] + self.param_noise_list
-                feed_output = [batch_x, batch_y] + noise_list
-                feed_dict_val = {i: d for i, d in zip(feed_input, feed_output)}
-                _, A_i, cost_i, kldiv2_i, B_i, m_w, v_w, _log_prior_std, Bquad_i, factor1_i, factor2_i = self.sess.run(
-                    [train_step, A, cost, self.KLdivTimes2, self.B, self.mean_weights_component,
-                     self.var_weights_component, log_prior_std, Bquad, factor1, factor2], feed_dict=feed_dict_val)
-
-                
-
-                # Save at a frequency for every epoch, or at the last run
-                if i%(1 * Nsamples / batch_size)==0 or (i == epochs*int(Nsamples/batch_size) - 1):
-                    print(train_accuracy_stoch)
-                    print(B_i)
-                    print(kldiv2_i)
+                    print("----")
+                    print("sqrt(B_RE/2): " + str(B_i))
+                    print("Train accuracy: " + str(train_accuracy_stoch))
+                    print("Train accuracy det: " + str(train_accuracy_det))
+                    print("KL Div: " + str(kldiv2_i / 2))
+                    print("j: " + str(np.exp((factor1_i + factor2_i)/2)))
+                    print("norm post variance: " + str(norm_post_variance_i))
+                    print("norm params: " + str(norm_params_i))
+                    print("nparams: " + str(nparams))
+                    print("sum_log_post_var: " + str(sum_log_post_variance_i))
+                    print("----")
                     bpac = approximate_BPAC_bound(train_accuracy_stoch, B_i)
                     output ="".join("Epoch:" + '%04d' % (epoch+1) + " cost=" + str(cost_i[0]) +
                                     " mean accuracy %.4f" % train_accuracy_stoch + ' KL div:  %.4f' % (kldiv2_i/2) +
@@ -389,6 +397,7 @@ class Network(object):
 
     def evaluate_SNN_accuracy(self, testX, testY, prior_weights=None, N_SNN_samples=200, save_dict=None):
         """ Run the check accuracy code """
+        print('\n\nSNN ACCURACY \n\n')
 
         # Hacky way to Create a new graph and session for now, resets the default:
         params_mean_values = self.get_model_weights()
@@ -478,8 +487,10 @@ class Network(object):
 
                 mean_train_accuracy = 0
                 mean_test_accuracy = 0
+                mean_train_accuracy_det = 0
                 for ns in range(N_SNN_samples):
                     noise_list = generate_noise(self.layer_shapes)
+                    zero_noise_list = generate_zero_noise(self.layer_shapes)
 
                     feed_input = [self.x,self.y] + param_noise_list
                     train_accur_i = self.print_accuracy_in_batches_noise(self.X, self.Y, noise_list,
@@ -487,11 +498,16 @@ class Network(object):
 
                     test_accur_i = self.print_accuracy_in_batches_noise(testX, testY, noise_list, feed_input, accuracy,
                                                                         whichset='test')
+
+                    train_accur_i_det = self.print_accuracy_in_batches_noise(self.X, self.Y, zero_noise_list, feed_input, accuracy, whichset='train')
+                    
                     mean_train_accuracy += train_accur_i
                     mean_test_accuracy += test_accur_i
+                    mean_train_accuracy_det += train_accur_i_det
 
                 mean_train_accuracy = mean_train_accuracy/N_SNN_samples
                 mean_test_accuracy = mean_test_accuracy/N_SNN_samples
+                mean_train_accuracy_det = mean_train_accuracy_det/N_SNN_samples
                 print("Train error :", (1-mean_train_accuracy),
                       "Test error :", (1-mean_test_accuracy))
 
@@ -502,10 +518,22 @@ class Network(object):
                     KL_val = KLdivTimes2.eval({log_prior_std: init_log_prior_std_up, jopt: jdisc_up})/2.0
                 else:
                     KL_val = KLdivTimes2.eval({log_prior_std: init_log_prior_std_down, jopt: jdisc_down})/2.0
+                norm_post_var = norm_post_variance.eval({})
+                norm_par = norm_params.eval({})
+                sum_log_post_var = sum_log_post_variance.eval({})
 
-                print(mean_train_accuracy)
-                print(B_val)
-                print(KL_val)
+                print("----")
+                print("sqrt(B_RE/2):" + str(B_val))
+                print("Mean train accuracy: " + str(mean_train_accuracy))
+                print("Mean train accuracy det: "+ str(mean_train_accuracy_det))
+                print("Mean test accuracy: " + str(mean_test_accuracy))
+                print("KL div: " + str(KL_val))
+                print("j: " + str(jdisc_up) + " OR " + str(jdisc_down))
+                print("norm post variance: " + str(norm_post_var))
+                print("norm params: " + str(norm_par))
+                print("nparams: " + str(nparams))
+                print("sum_log_post_var: " + str(sum_log_post_var))
+                print("----")
                 bpac = approximate_BPAC_bound(mean_train_accuracy, B_val)
                 print("Results with delta = %.3f"%(self.deltaPAC+0.01))
                 print("PAC bound error:", '%.4f' % bpac,

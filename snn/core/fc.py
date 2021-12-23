@@ -44,6 +44,18 @@ class FC(Network):
                     param_val_list.append(b_h.eval(session=self.sess))
             return param_val_list
 
+    def get_model_weights_vars(self):
+        with self.graph.as_default():
+            self.tf_init # Not called if it has already been called
+            param_val_list = []
+            for (scopename,n_in,n_out) in zip(self.scopes_list,self.layers[:-1],self.layers[1:]):
+                with tf.variable_scope(scopename, reuse=True) as scope:
+                    W_h = tf.get_variable('weights', shape=[n_in, n_out])
+                    b_h = tf.get_variable('biases', shape=[n_out])
+                    param_val_list.append(W_h)
+                    param_val_list.append(b_h)
+            return param_val_list
+
     def count_N_params(self):
         """
         For computing VC dimension bound with boundVCdim()

@@ -2,4 +2,5 @@ mnist/
 __pycache__
 snn/experiments/binary_mnist
 snn/experiments/cifar
-test.txt
+*.txt
+linear_regression.py

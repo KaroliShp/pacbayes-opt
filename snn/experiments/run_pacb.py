@@ -19,7 +19,7 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
     # Checkpoint optimization runs periodically (absolute),
     model.optimize_PACB(weights_rand_init, epochs, learning_rate=learning_rate, drop_lr=drop_lr, lr_factor=lr_factor,
                         save_dict=save_dict, trainWeights=trainw)
-    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=1, save_dict=save_dict)
+    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=50, save_dict=save_dict)
 
     path = os.path.join(package_path, "experiments", "cifar",
                         ("model_mean_opt{}_LR{}_seed{}.pickle".format(trainw, learning_rate, seed)))
