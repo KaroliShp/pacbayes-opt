@@ -129,6 +129,15 @@ class Network(object):
             pickle.dump(self.output_dict, f)
         return
 
+    def save_logging_info(self, path):
+        save_dir = os.path.join(*os.path.split(path)[:-1])
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        with open(path, 'w') as f:
+            for (a,b,c) in zip(self.all_bounds, self.all_kl_divergence, self.all_train_accuracy):
+                f.write(str(a) + "," + str(b[0]) + "," + str(c) + "\n")
+        return
+
     @lazy_property
     def cost_fn(self):
         with self.graph.as_default():
@@ -316,6 +325,11 @@ class Network(object):
             Nsamples = self.Nsamples
             trainX, trainY = self.X, self.Y
 
+            # Storage info
+            self.all_bounds = []
+            self.all_kl_divergence = []
+            self.all_train_accuracy = []
+
             for i in range(epochs*int(Nsamples/batch_size)):
                 epoch = int(i / (Nsamples/batch_size))
                 batch_x, batch_y = next_batch(trainX, trainY, batch_size, int(i % (Nsamples/batch_size)))
@@ -380,6 +394,11 @@ class Network(object):
                                     ' log_prior_std: %.4f' % _log_prior_std + ' B PAC: %.4f' % bpac + ' factor1: %.4f' % factor1_i +
                                     ' factor2: %.4f' % factor2_i)
                     print(output)
+
+                    self.all_bounds.append(bpac)
+                    self.all_kl_divergence.append(kldiv2_i / 2)
+                    self.all_train_accuracy.append(train_accuracy_stoch)
+
                 self.PACB_store(save_dict, i=i, log_prior_std=_log_prior_std, m_w=m_w, v_w=v_w, bpac=bpac,
                                 log_post_std_list=log_post_std_list, KL_val=kldiv2_i / 2) # Store the desired values for saving
 

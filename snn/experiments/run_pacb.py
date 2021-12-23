@@ -21,9 +21,13 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
                         save_dict=save_dict, trainWeights=trainw)
     model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=50, save_dict=save_dict)
 
-    path = os.path.join(package_path, "experiments", "cifar",
+    path = os.path.join(package_path, "experiments", "binary_mnist",
                         ("model_mean_opt{}_LR{}_seed{}.pickle".format(trainw, learning_rate, seed)))
     model.save_output(path=path)
+
+    path_log = os.path.join(package_path, "experiments", "binary_mnist",
+                        ("model_mean_opt{}_LR{}_seed{}.csv".format(trainw, learning_rate, seed)))
+    model.save_logging_info(path_log)
 
 
 if __name__ == '__main__':
