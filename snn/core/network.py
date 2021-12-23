@@ -73,7 +73,7 @@ class Network(object):
                                       feed_dict={self.x: x[ii:jj],
                                                  self.y: y[ii:jj]})
         test_acc = test_acc / no_batches
-        #print("Average %s accuracy: %.4f" %(whichset, test_acc))
+        print("Average %s accuracy: %.4f" %(whichset, test_acc))
         return test_acc
 
     def print_accuracy_in_batches_noise(self, x, y, noise, feed_input, accuracy, no_batches=10, whichset='train'):
@@ -118,6 +118,9 @@ class Network(object):
                 batch_x, batch_y = next_batch(self.X[index_set], self.Y[index_set], batch_size,
                                               int(i % number_of_batches_per_epoch))
                 _, cost = self.sess.run([train_step, self.cost_fn], feed_dict={self.x: batch_x, self.y: batch_y})
+
+                if i%100==0:
+                  print("Cost: " + str(cost))
         self.trained_weights = self.get_model_weights()
         return weights_rand_init
 
