@@ -82,4 +82,4 @@ class Interpreter(object):
             model = CNN(trainX, trainY, graph=tf.Graph(), seed=seed, initial_weights=initial_weights)
         else:
             raise NotImplementedError("The model '{}' has not been implemented".format(self.input_args["model"]))
-        return model, (testX, testY), path
+        return model, (testX, testY), path, (trainX, trainY)

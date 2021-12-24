@@ -22,7 +22,7 @@ def run_sgd(model, epochs):
 
 if __name__ == '__main__':
     basic_args = BasicParser().parse()
-    model, test_set, save_path = Interpreter(basic_args).interpret()
+    model, test_set, save_path, _ = Interpreter(basic_args).interpret()
     saved_entities = run_sgd(model, basic_args["sgd_epochs"])
     model.print_full_accuracy(*test_set)
     serialization_path = os.path.join(package_path, "experiments", save_path)

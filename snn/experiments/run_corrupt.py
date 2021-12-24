@@ -4,8 +4,34 @@ sys.path.insert(0, "/snn/")
 sys.path.insert(0, "/")
 
 from snn.core import package_path
-from snn.core.parse_args import CompleteParser, Interpreter
-from snn.core.utils import deserialize
+from snn.core.parse_args import BasicParser, CompleteParser, Interpreter
+from snn.core.utils import serialize, deserialize
+import copy
+
+
+def run_sgd(model, epochs):
+    """
+        Runs SGD for a predefined number of epochs and saves the resulting model.
+    """
+    print("Training full network")
+    weights_rand_init = model.optimize(epochs=epochs)
+    # weights_rand_init = model.optimize(epochs=epochs, batch_size=55000, learning_rate=0.03)
+    print("Model optimized!!!")
+
+    return [model.get_model_weights(), weights_rand_init]
+
+
+def sgd_main(basic_args):
+    print("\n--SGD--\n")
+    model, test_set, save_path, train_set = Interpreter(basic_args).interpret()
+    saved_entities = run_sgd(model, basic_args["sgd_epochs"])
+    model.print_full_accuracy(*test_set)
+    serialization_path = os.path.join(package_path, "experiments", save_path)
+    print("Saving run in ", serialization_path)
+    serialize(saved_entities, serialization_path, basic_args["overwrite"])
+    print("SGD run complete!")
+    print("\n--SGD--\n")
+    return train_set
 
 
 def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr, lr_factor, seed, trainw):
@@ -30,14 +56,27 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
     model.save_logging_info(path_log)
 
 
-if __name__ == '__main__':
-    complete_args = CompleteParser().parse()
-    _, _, save_path, _, _ = Interpreter(complete_args).interpret()
+def pacb_main(train_set, complete_args):
+    print("\n--PAC BAYES--\n")
+    _, _, save_path, _ = Interpreter(complete_args).interpret()
     deserialization_path = os.path.join(package_path, "experiments", save_path)
     print("Loading model weights saved in ", deserialization_path)
     model_weights, weights_rand_init = deserialize(deserialization_path)
     print("Model weights loaded!")
-    model, test_set, _, _ = Interpreter(complete_args).interpret(model_weights)
+    model, test_set, _, train_test = Interpreter(complete_args).interpret(model_weights)
+
+    print("OVERWRITING MODEL TRAIN/TEST SETS")
+    model.X = train_set[0]
+    model.Y = train_set[1]
+    print("TRAIN DATA IDENTICAL X: " + str((model.X == train_test[0]).all()))
+    print("TRAIN DATA IDENTICAL Y: " + str((model.Y == train_test[1]).all()))
+
     run_pacb(weights_rand_init, model, test_set, complete_args["pacb_epochs"], complete_args["lr"],
              complete_args["drop_lr"], complete_args["lr_factor"], complete_args["seed"], complete_args["trainw"])
     print("PAC-Bayes run complete!")
+
+
+if __name__ == '__main__':
+    complete_args = CompleteParser().parse()
+    train_set = sgd_main(complete_args)
+    pacb_main(train_set, complete_args)
