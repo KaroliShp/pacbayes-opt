@@ -24,6 +24,7 @@ if __name__ == '__main__':
     basic_args = BasicParser().parse()
     model, test_set, save_path = Interpreter(basic_args).interpret()
     saved_entities = run_sgd(model, basic_args["sgd_epochs"])
+    model.print_full_accuracy(*test_set)
     serialization_path = os.path.join(package_path, "experiments", save_path)
     print("Saving run in ", serialization_path)
     serialize(saved_entities, serialization_path, basic_args["overwrite"])

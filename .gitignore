@@ -4,3 +4,6 @@ snn/experiments/binary_mnist
 snn/experiments/cifar
 *.txt
 linear_regression.py
+.DS_Store
+graphs/
+experiments_outputs/

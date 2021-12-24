@@ -44,20 +44,29 @@ def load_mnist_data(data_dir = MNIST_DATA_DIR, one_hot=True):
     return (trainX, trainY), (testX, testY)
 
 
-def load_binary_mnist(data_dir = MNIST_DATA_DIR, randomize_labels=False):
+def load_binary_mnist(data_dir = MNIST_DATA_DIR, corrupt_prob=0.0):
     mnist = input_data.read_data_sets(data_dir, one_hot=False)
     trainX, trainY = mnist.train.images, mnist.train.labels
     testX, testY = mnist.test.images, mnist.test.labels
     trainY = binarize_mnist_labels(trainY)
     testY = binarize_mnist_labels(testY)
 
-    print(trainY[:10])
-    print(type(trainY))
+    if corrupt_prob > 0.0:
+        total_changed = 0
+        total = 0
 
-    if randomize_labels:
-        np.random.shuffle(trainY)
-        print(trainY[:10])
-        print(type(trainY))
+        for i in range(0,len(trainY)):
+            if (np.random.rand(1)[0] <= corrupt_prob):
+                new_label = -1 if random.randint(0,1) == 0 else 1
+                if new_label == trainY[i]:
+                    total_changed += 1
+                trainY[i] = new_label
+            total += 1
+        
+        print("\nLABELS CORRUPTED")
+        print("TOTAL LABELS: " + str(total) + "; CORRUPTED LABELS: " + str(total_changed) + "; PERCENTAGE: " + str(total_changed/total) + "\n")
+    else:
+        print("\nNO CORRUPTION TO LABELS\n")
 
     return (trainX, trainY), (testX, testY)
 

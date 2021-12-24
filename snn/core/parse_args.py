@@ -19,11 +19,12 @@ class BasicParser(object):
         self.parser.add_argument("--seed", help="Random seed", type=int, required=False, default=11)
         self.parser.add_argument("--binary", action='store_true')
         self.parser.add_argument("--overwrite", action='store_true')
-        self.parser.add_argument("--randomlabels", action='store_true')
+        self.parser.add_argument("--corruption", help="Corruption of labels. Set to 0.0 when running PAC-Bayes", type=float,
+                                 required=False, default=0.0)
 
     def get_args(self, args):
         return {"model": args.model, "layers": args.layers, "sgd_epochs": args.sgd_epochs, "seed": args.seed,
-                "binary": args.binary, "overwrite": args.overwrite, "randomlabels": args.randomlabels}
+                "binary": args.binary, "overwrite": args.overwrite, "corruption": args.corruption}
 
     def parse(self):
         args = self.parser.parse_args()
@@ -65,8 +66,8 @@ class Interpreter(object):
             if self.input_args["binary"]:
                 path = os.path.join("binary_mnist", "{}_layers{}_epochs{}_seed{}.pickle".format(norm_name, layers,
                                                                                                 epochs, seed))
-                print("Random labels: " + str(self.input_args["randomlabels"]))
-                (trainX, trainY), (testX, testY) = load_binary_mnist(randomize_labels=self.input_args["randomlabels"])
+                print("Random labels corruption: " + str(self.input_args["corruption"]))
+                (trainX, trainY), (testX, testY) = load_binary_mnist(corrupt_prob=self.input_args["corruption"])
                 model = FC(trainX, trainY, layers=[784] + layers + [1], scopes_list=scopes_list, graph=tf.Graph(),
                            seed=seed, initial_weights=initial_weights)
             else:
