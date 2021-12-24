@@ -14,6 +14,7 @@ def run_sgd(model, epochs):
     """
     print("Training full network")
     weights_rand_init = model.optimize(epochs=epochs)
+    # weights_rand_init = model.optimize(epochs=epochs, batch_size=55000, learning_rate=0.03)
     print("Model optimized!!!")
 
     return [model.get_model_weights(), weights_rand_init]

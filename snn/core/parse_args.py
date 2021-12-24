@@ -1,5 +1,6 @@
 import argparse
 import os
+from random import random
 
 import tensorflow as tf
 
@@ -18,10 +19,11 @@ class BasicParser(object):
         self.parser.add_argument("--seed", help="Random seed", type=int, required=False, default=11)
         self.parser.add_argument("--binary", action='store_true')
         self.parser.add_argument("--overwrite", action='store_true')
+        self.parser.add_argument("--randomlabels", action='store_true')
 
     def get_args(self, args):
         return {"model": args.model, "layers": args.layers, "sgd_epochs": args.sgd_epochs, "seed": args.seed,
-                "binary": args.binary, "overwrite": args.overwrite}
+                "binary": args.binary, "overwrite": args.overwrite, "randomlabels": args.randomlabels}
 
     def parse(self):
         args = self.parser.parse_args()
@@ -63,7 +65,8 @@ class Interpreter(object):
             if self.input_args["binary"]:
                 path = os.path.join("binary_mnist", "{}_layers{}_epochs{}_seed{}.pickle".format(norm_name, layers,
                                                                                                 epochs, seed))
-                (trainX, trainY), (testX, testY) = load_binary_mnist()
+                print("Random labels: " + str(self.input_args["randomlabels"]))
+                (trainX, trainY), (testX, testY) = load_binary_mnist(randomize_labels=self.input_args["randomlabels"])
                 model = FC(trainX, trainY, layers=[784] + layers + [1], scopes_list=scopes_list, graph=tf.Graph(),
                            seed=seed, initial_weights=initial_weights)
             else:

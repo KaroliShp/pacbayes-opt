@@ -101,12 +101,12 @@ class Network(object):
             self.tf_init # Initialize the tf variables
             weights_rand_init = self.get_model_weights()
             # Initialize the SGD trainer
-            sgd = SGD(self.X, self.Y, total_epochs=epochs, batch_size=100, seed=self.seed)
+            sgd = SGD(self.X, self.Y, total_epochs=epochs, batch_size=batch_size, seed=self.seed)
             number_of_batches_per_epoch = int(self.Nsamples / batch_size)
             total_number_of_iterations = epochs * number_of_batches_per_epoch
             for i in range(total_number_of_iterations):
                 epoch = int(i / number_of_batches_per_epoch)
-                if i%100==0:
+                if i%batch_size==0:
                   remainder = i % number_of_batches_per_epoch
                   print("Iter: %d / %d"%(remainder, number_of_batches_per_epoch))
 
@@ -119,7 +119,7 @@ class Network(object):
                                               int(i % number_of_batches_per_epoch))
                 _, cost = self.sess.run([train_step, self.cost_fn], feed_dict={self.x: batch_x, self.y: batch_y})
 
-                if i%100==0:
+                if i%batch_size==0:
                   print("Cost: " + str(cost))
         self.trained_weights = self.get_model_weights()
         return weights_rand_init

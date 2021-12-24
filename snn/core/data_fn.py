@@ -44,12 +44,21 @@ def load_mnist_data(data_dir = MNIST_DATA_DIR, one_hot=True):
     return (trainX, trainY), (testX, testY)
 
 
-def load_binary_mnist(data_dir = MNIST_DATA_DIR):
+def load_binary_mnist(data_dir = MNIST_DATA_DIR, randomize_labels=False):
     mnist = input_data.read_data_sets(data_dir, one_hot=False)
     trainX, trainY = mnist.train.images, mnist.train.labels
     testX, testY = mnist.test.images, mnist.test.labels
     trainY = binarize_mnist_labels(trainY)
     testY = binarize_mnist_labels(testY)
+
+    print(trainY[:10])
+    print(type(trainY))
+
+    if randomize_labels:
+        np.random.shuffle(trainY)
+        print(trainY[:10])
+        print(type(trainY))
+
     return (trainX, trainY), (testX, testY)
 
 
