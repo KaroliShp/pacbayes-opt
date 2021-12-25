@@ -6,4 +6,3 @@ snn/experiments/cifar
 linear_regression.py
 .DS_Store
 graphs/
-experiments_outputs/

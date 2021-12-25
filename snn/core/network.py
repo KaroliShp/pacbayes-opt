@@ -40,6 +40,9 @@ class Network(object):
 
             # Set graph level random seeds
             self.seed = seed
+
+            self.test_X = None
+            self.test_Y = None
         return
 
     def __call__(self, x, y):
@@ -112,7 +115,8 @@ class Network(object):
 
                 if i%number_of_batches_per_epoch == 0: # Print and shuffle at every epoch
                     print("Epoch: ", epoch)
-                    self.print_accuracy_in_batches(self.X, self.Y,50)
+                    #self.print_accuracy_in_batches(self.X, self.Y,50)
+                    self.print_full_accuracy(self.test_X, self.test_Y)
                     index_set = sgd.epoch_train_set(epoch=epoch)
 
                 batch_x, batch_y = next_batch(self.X[index_set], self.Y[index_set], batch_size,

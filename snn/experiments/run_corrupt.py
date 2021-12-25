@@ -24,6 +24,8 @@ def run_sgd(model, epochs):
 def sgd_main(basic_args):
     print("\n--SGD--\n")
     model, test_set, save_path, train_set = Interpreter(basic_args).interpret()
+    model.test_X = test_set[0]
+    model.test_Y = test_set[1]
     saved_entities = run_sgd(model, basic_args["sgd_epochs"])
     model.print_full_accuracy(*test_set)
     serialization_path = os.path.join(package_path, "experiments", save_path)
