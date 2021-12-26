@@ -79,6 +79,8 @@ class Interpreter(object):
         elif norm_name == "CNN":
             path = os.path.join("cifar", "{}_epochs{}_seed{}.pickle".format(norm_name, epochs, seed))
             (trainX, trainY), (testX, testY) = load_cifar_data()
+            print('CIFAR')
+            print(trainY[:10])
             model = CNN(trainX, trainY, graph=tf.Graph(), seed=seed, initial_weights=initial_weights)
         else:
             raise NotImplementedError("The model '{}' has not been implemented".format(self.input_args["model"]))

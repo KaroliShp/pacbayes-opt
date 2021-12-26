@@ -90,10 +90,12 @@ def load_cifar_data(data_dir = CIFAR_DATA_DIR, one_hot=True):
     """
 
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-    y_train = tf.keras.utils.to_categorical(y_train, NUM_CLASSES)
-    y_test = tf.keras.utils.to_categorical(y_test, NUM_CLASSES)
+    #y_train = tf.keras.utils.to_categorical(y_train, NUM_CLASSES)
+    #y_test = tf.keras.utils.to_categorical(y_test, NUM_CLASSES)
     x_train, xmean, xstd = normalize_meanstd(x_train, axis=0)
     x_test,_m,_s = normalize_meanstd(x_test, axis=0, mean=xmean, std=xstd)
+    y_train = binarize_mnist_labels(y_train)
+    y_test = binarize_mnist_labels(y_test)
     return (x_train, y_train), (x_test, y_test)
 
 

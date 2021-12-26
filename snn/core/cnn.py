@@ -99,6 +99,6 @@ class CNN(Network):
     def create_placeholders(self):
         # Recreate Placeholders for the optimization
         with self.graph.as_default():
-            y = tf.placeholder(tf.float32, [None, 10])
+            y = tf.placeholder(tf.float32, [None, 1])
             x = tf.placeholder(tf.float32, [None, IMAGE_SIZE, IMAGE_SIZE, 3])
         return x, y
