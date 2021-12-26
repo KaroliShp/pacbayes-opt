@@ -33,7 +33,7 @@ def sgd_main(basic_args):
     serialize(saved_entities, serialization_path, basic_args["overwrite"])
     print("SGD run complete!")
     print("\n--SGD--\n")
-    return train_set
+    return train_set, test_set
 
 
 def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr, lr_factor, seed, trainw):
@@ -47,7 +47,7 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
     # Checkpoint optimization runs periodically (absolute),
     model.optimize_PACB(weights_rand_init, epochs, learning_rate=learning_rate, drop_lr=drop_lr, lr_factor=lr_factor,
                         save_dict=save_dict, trainWeights=trainw)
-    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=50, save_dict=save_dict)
+    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=1000, save_dict=save_dict)
 
     path = os.path.join(package_path, "experiments", "binary_mnist",
                         ("model_mean_opt{}_LR{}_seed{}.pickle".format(trainw, learning_rate, seed)))
@@ -58,7 +58,7 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
     model.save_logging_info(path_log)
 
 
-def pacb_main(train_set, complete_args):
+def pacb_main(train_set, test_set_og, complete_args):
     print("\n--PAC BAYES--\n")
     _, _, save_path, _ = Interpreter(complete_args).interpret()
     deserialization_path = os.path.join(package_path, "experiments", save_path)
@@ -73,12 +73,12 @@ def pacb_main(train_set, complete_args):
     print("TRAIN DATA IDENTICAL X: " + str((model.X == train_test[0]).all()))
     print("TRAIN DATA IDENTICAL Y: " + str((model.Y == train_test[1]).all()))
 
-    run_pacb(weights_rand_init, model, test_set, complete_args["pacb_epochs"], complete_args["lr"],
+    run_pacb(weights_rand_init, model, test_set_og, complete_args["pacb_epochs"], complete_args["lr"],
              complete_args["drop_lr"], complete_args["lr_factor"], complete_args["seed"], complete_args["trainw"])
     print("PAC-Bayes run complete!")
 
 
 if __name__ == '__main__':
     complete_args = CompleteParser().parse()
-    train_set = sgd_main(complete_args)
-    pacb_main(train_set, complete_args)
+    train_set, test_set = sgd_main(complete_args)
+    pacb_main(train_set, test_set, complete_args)

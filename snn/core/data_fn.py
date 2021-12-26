@@ -54,7 +54,6 @@ def load_binary_mnist(data_dir = MNIST_DATA_DIR, corrupt_prob=0.0):
     if corrupt_prob > 0.0:
         total_changed = 0
         total = 0
-
         for i in range(0,len(trainY)):
             if (np.random.rand(1)[0] <= corrupt_prob):
                 new_label = -1 if random.randint(0,1) == 0 else 1
@@ -62,8 +61,19 @@ def load_binary_mnist(data_dir = MNIST_DATA_DIR, corrupt_prob=0.0):
                     total_changed += 1
                 trainY[i] = new_label
             total += 1
-        
-        print("\nLABELS CORRUPTED")
+        print("\nTRAIN LABELS CORRUPTED")
+        print("TOTAL LABELS: " + str(total) + "; CORRUPTED LABELS: " + str(total_changed) + "; PERCENTAGE: " + str(total_changed/total) + "\n")
+
+        total_changed = 0
+        total = 0
+        for i in range(0,len(testY)):
+            if (np.random.rand(1)[0] <= corrupt_prob):
+                new_label = -1 if random.randint(0,1) == 0 else 1
+                if new_label == testY[i]:
+                    total_changed += 1
+                testY[i] = new_label
+            total += 1
+        print("\nTEST LABELS CORRUPTED")
         print("TOTAL LABELS: " + str(total) + "; CORRUPTED LABELS: " + str(total_changed) + "; PERCENTAGE: " + str(total_changed/total) + "\n")
     else:
         print("\nNO CORRUPTION TO LABELS\n")

@@ -14,6 +14,8 @@ if __name__ == '__main__':
     deserialization_path = os.path.join(package_path, "experiments", save_path)
     print("Loading model weights saved in ", deserialization_path)
     model_weights, weights_rand_init = deserialize(deserialization_path)
+    print(len(model_weights))
+    print(type(model_weights))
     print("Model weights loaded!")
     model, test_set, _, _ = Interpreter(complete_args).interpret(model_weights)
     weights_rand_init = model.optimize(epochs=0)

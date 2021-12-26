@@ -19,7 +19,7 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
     # Checkpoint optimization runs periodically (absolute),
     model.optimize_PACB(weights_rand_init, epochs, learning_rate=learning_rate, drop_lr=drop_lr, lr_factor=lr_factor,
                         save_dict=save_dict, trainWeights=trainw)
-    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=50, save_dict=save_dict)
+    model.evaluate_SNN_accuracy(testX, testY, weights_rand_init, N_SNN_samples=1000, save_dict=save_dict)
 
     path = os.path.join(package_path, "experiments", "binary_mnist",
                         ("model_mean_opt{}_LR{}_seed{}.pickle".format(trainw, learning_rate, seed)))
@@ -32,7 +32,7 @@ def run_pacb(weights_rand_init, model, test_set, epochs, learning_rate, drop_lr,
 
 if __name__ == '__main__':
     complete_args = CompleteParser().parse()
-    _, _, save_path, _, _ = Interpreter(complete_args).interpret()
+    _, _, save_path, _ = Interpreter(complete_args).interpret()
     deserialization_path = os.path.join(package_path, "experiments", save_path)
     print("Loading model weights saved in ", deserialization_path)
     model_weights, weights_rand_init = deserialize(deserialization_path)
